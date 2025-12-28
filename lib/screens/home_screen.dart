@@ -1,13 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:provider/provider.dart';
 import '../core/theme/app_theme.dart';
 import '../services/camera_service.dart';
-import '../providers/clothing_provider.dart';
 import '../widgets/camera_overlay.dart';
 import '../widgets/glam_button.dart';
-import 'scan_result_screen.dart';
+import 'conversation_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -69,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _takePicture() async {
     if (_isCapturing) return;
-    
+
     setState(() {
       _isCapturing = true;
     });
@@ -95,26 +93,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  void _navigateToResult(File imageFile) {
-    final provider = context.read<ClothingProvider>();
-    provider.reset();
-    
+  Future<void> _navigateToResult(File imageFile) async {
+    final imageBytes = await imageFile.readAsBytes();
+
+    if (!mounted) return;
+
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => 
-          ScanResultScreen(imageFile: imageFile),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            ConversationScreen(
+              imageBytes: imageBytes,
+              imagePath: imageFile.path,
+            ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,
             child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.1),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-              )),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0, 0.1),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
               child: child,
             ),
           );
@@ -137,10 +142,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             _buildErrorState()
           else
             _buildCameraPreview(),
-          
+
           // Top Bar
           _buildTopBar(),
-          
+
           // Bottom Controls
           _buildBottomControls(),
         ],
@@ -192,10 +197,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppTheme.softGray,
-                  fontSize: 16,
-                ),
+                style: const TextStyle(color: AppTheme.softGray, fontSize: 16),
               ),
               const SizedBox(height: 32),
               GlamButton(
@@ -218,12 +220,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ClipRRect(
           child: Transform.scale(
             scale: 1.0,
-            child: Center(
-              child: CameraPreview(_cameraService.controller!),
-            ),
+            child: Center(child: CameraPreview(_cameraService.controller!)),
           ),
         ),
-        
+
         // Overlay
         const CameraOverlay(),
       ],
@@ -264,7 +264,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ],
             ),
-            
+
             // Settings button (placeholder)
             Container(
               decoration: GlassDecoration(),
@@ -272,10 +272,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 onPressed: () {
                   // TODO: Settings
                 },
-                icon: const Icon(
-                  Icons.tune_rounded,
-                  color: AppTheme.pureWhite,
-                ),
+                icon: const Icon(Icons.tune_rounded, color: AppTheme.pureWhite),
               ),
             ),
           ],
@@ -311,15 +308,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               decoration: GlassDecoration(opacity: 0.15),
               child: const Text(
                 '📸 Point at a clothing item to scan',
-                style: TextStyle(
-                  color: AppTheme.pureWhite,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: AppTheme.pureWhite, fontSize: 14),
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Controls
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -330,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   label: 'Gallery',
                   onTap: _pickFromGallery,
                 ),
-                
+
                 // Capture button
                 GestureDetector(
                   onTap: _error == null ? _takePicture : null,
@@ -364,13 +358,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ),
                 ),
-                
+
                 // Switch camera button
                 _buildControlButton(
                   icon: Icons.flip_camera_ios_outlined,
                   label: 'Flip',
                   onTap: _error == null
-                      ? () => _cameraService.switchCamera().then((_) => setState(() {}))
+                      ? () => _cameraService.switchCamera().then(
+                          (_) => setState(() {}),
+                        )
                       : null,
                 ),
               ],
@@ -405,7 +401,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Text(
             label,
             style: TextStyle(
-              color: onTap != null ? AppTheme.softGray : AppTheme.softGray.withOpacity(0.5),
+              color: onTap != null
+                  ? AppTheme.softGray
+                  : AppTheme.softGray.withOpacity(0.5),
               fontSize: 12,
             ),
           ),

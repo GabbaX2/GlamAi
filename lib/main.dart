@@ -4,24 +4,25 @@ import 'package:provider/provider.dart';
 import 'config/env_config.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/clothing_provider.dart';
+import 'providers/conversation_provider.dart';
 import 'screens/home_screen.dart';
 import 'services/gemini_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Load environment variables
   await EnvConfig.load();
-  
+
   // Initialize Gemini service
   await GeminiService.instance.initialize();
-  
+
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
+
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -31,7 +32,7 @@ void main() async {
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
-  
+
   runApp(const GlamAIApp());
 }
 
@@ -43,6 +44,7 @@ class GlamAIApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ClothingProvider()),
+        ChangeNotifierProvider(create: (_) => ConversationProvider()),
       ],
       child: MaterialApp(
         title: 'Glam AI',
@@ -61,7 +63,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -73,33 +76,34 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0, 0.6, curve: Curves.easeOut),
       ),
     );
-    
+
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0, 0.6, curve: Curves.easeOutBack),
       ),
     );
-    
+
     _controller.forward();
-    
+
     // Navigate to home after delay
     Future.delayed(const Duration(milliseconds: 2500), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => 
-              const HomeScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const HomeScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
             transitionDuration: const Duration(milliseconds: 500),
           ),
         );
@@ -118,9 +122,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     return Scaffold(
       backgroundColor: AppTheme.primaryBlack,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.darkGradient,
-        ),
+        decoration: const BoxDecoration(gradient: AppTheme.darkGradient),
         child: Center(
           child: AnimatedBuilder(
             animation: _controller,
@@ -158,7 +160,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   ),
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Title
                 const Text(
                   'GLAM AI',
@@ -170,10 +172,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   ),
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Tagline
                 ShaderMask(
-                  shaderCallback: (bounds) => AppTheme.goldGradient.createShader(bounds),
+                  shaderCallback: (bounds) =>
+                      AppTheme.goldGradient.createShader(bounds),
                   child: const Text(
                     'Your AI Fashion Stylist',
                     style: TextStyle(
@@ -184,9 +187,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 60),
-                
+
                 // Loading indicator
                 SizedBox(
                   width: 40,
