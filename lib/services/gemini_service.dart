@@ -28,28 +28,17 @@ class GeminiService {
       throw Exception('Gemini API key not found in .env file');
     }
 
-    _model = GenerativeModel(
-      model: 'gemini-1.5-flash',
-      apiKey: apiKey,
-    );
+    _model = GenerativeModel(model: 'gemini-2.0-flash', apiKey: apiKey);
 
-    _visionModel = GenerativeModel(
-      model: 'gemini-1.5-flash',
-      apiKey: apiKey,
-    );
+    _visionModel = GenerativeModel(model: 'gemini-2.0-flash', apiKey: apiKey);
 
     _isInitialized = true;
   }
 
   /// Analyze a clothing item from an image file
   Future<ClothingItem?> analyzeClothingFromFile(File imageFile) async {
-    try {
-      final bytes = await imageFile.readAsBytes();
-      return analyzeClothingFromBytes(bytes, imagePath: imageFile.path);
-    } catch (e) {
-      print('Error analyzing clothing from file: $e');
-      return null;
-    }
+    final bytes = await imageFile.readAsBytes();
+    return analyzeClothingFromBytes(bytes, imagePath: imageFile.path);
   }
 
   /// Analyze a clothing item from image bytes
@@ -57,38 +46,42 @@ class GeminiService {
     Uint8List imageBytes, {
     String? imagePath,
   }) async {
+    await initialize();
+
+    final prompt = TextPart(AppConstants.clothingAnalysisPrompt);
+    final imagePart = DataPart('image/jpeg', imageBytes);
+
+    final response = await _visionModel.generateContent([
+      Content.multi([prompt, imagePart]),
+    ]);
+
+    final responseText = response.text;
+    if (responseText == null || responseText.isEmpty) {
+      throw Exception('Gemini returned empty response');
+    }
+
+    // Parse JSON response
     try {
-      await initialize();
-
-      final prompt = TextPart(AppConstants.clothingAnalysisPrompt);
-      final imagePart = DataPart('image/jpeg', imageBytes);
-
-      final response = await _visionModel.generateContent([
-        Content.multi([prompt, imagePart])
-      ]);
-
-      final responseText = response.text;
-      if (responseText == null || responseText.isEmpty) {
-        return null;
-      }
-
-      // Parse JSON response
       final jsonString = _extractJson(responseText);
       final jsonData = json.decode(jsonString);
-      
       return ClothingItem.fromJson(jsonData, imagePath: imagePath);
     } catch (e) {
-      print('Error analyzing clothing: $e');
-      return null;
+      throw Exception(
+        'Failed to parse Gemini response: $e\n\nRaw response: $responseText',
+      );
     }
   }
 
   /// Generate outfit suggestions based on a clothing item
-  Future<List<Outfit>> generateOutfits(ClothingItem item, {Uint8List? imageBytes}) async {
+  Future<List<Outfit>> generateOutfits(
+    ClothingItem item, {
+    Uint8List? imageBytes,
+  }) async {
     try {
       await initialize();
 
-      final itemDescription = '''
+      final itemDescription =
+          '''
 The user has a ${item.type} with the following details:
 - Color: ${item.primaryColor}
 - Style: ${item.style}
@@ -99,21 +92,17 @@ The user has a ${item.type} with the following details:
 - Description: ${item.description}
 ''';
 
-      final prompt = '$itemDescription\n\n${AppConstants.outfitGenerationPrompt}';
+      final prompt =
+          '$itemDescription\n\n${AppConstants.outfitGenerationPrompt}';
 
       GenerateContentResponse response;
-      
+
       if (imageBytes != null) {
         response = await _visionModel.generateContent([
-          Content.multi([
-            TextPart(prompt),
-            DataPart('image/jpeg', imageBytes),
-          ])
+          Content.multi([TextPart(prompt), DataPart('image/jpeg', imageBytes)]),
         ]);
       } else {
-        response = await _model.generateContent([
-          Content.text(prompt)
-        ]);
+        response = await _model.generateContent([Content.text(prompt)]);
       }
 
       final responseText = response.text;
@@ -124,7 +113,7 @@ The user has a ${item.type} with the following details:
       // Parse JSON response
       final jsonString = _extractJson(responseText);
       final jsonData = json.decode(jsonString);
-      
+
       final outfitsJson = jsonData['outfits'] as List<dynamic>?;
       if (outfitsJson == null) return [];
 
@@ -147,7 +136,7 @@ Help the user with fashion advice, outfit suggestions, and style tips.
 Be concise, friendly, and use emojis occasionally.
 
 User: $message
-''')
+'''),
       ]);
 
       return response.text ?? 'Sorry, I could not process your request.';
